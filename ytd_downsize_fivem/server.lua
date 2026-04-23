@@ -84,8 +84,9 @@ end
 
 -- ─── Script path resolution ──────────────────────────────────────────────────
 
---- Return the path to ytd_downsize.py, checking Config.ScriptPath first,
---- then several locations relative to this resource.
+--- Return the path to ytd_downsize.py.
+--- Checks Config.ScriptPath first, then the bundled copy inside this resource,
+--- then legacy locations one or two directories above the resource folder.
 local function resolveScriptPath()
     if Config.ScriptPath then
         if fileExists(Config.ScriptPath) then
@@ -95,12 +96,11 @@ local function resolveScriptPath()
         return nil
     end
 
-    -- Auto-detect relative to the resource directory
     local resourcePath = GetResourcePath(resourceName)
     local candidates = {
-        resourcePath .. '/../../ytd_downsize.py',  -- ToolKitV repo root (two levels up)
+        resourcePath .. '/ytd_downsize.py',        -- bundled inside this resource (preferred)
         resourcePath .. '/../ytd_downsize.py',     -- one level up
-        resourcePath .. '/ytd_downsize.py',        -- inside this resource
+        resourcePath .. '/../../ytd_downsize.py',  -- ToolKitV repo root (two levels up)
     }
 
     for _, candidate in ipairs(candidates) do
@@ -110,6 +110,17 @@ local function resolveScriptPath()
     end
 
     return nil
+end
+
+--- Return the paths to the bundled texconv.exe and CodeWalker.Core.dll, or nil
+--- if not found inside the resource (the Python script will then auto-detect them).
+local function resolveDependencyPaths()
+    local resourcePath = GetResourcePath(resourceName)
+    local texconv = resourcePath .. '/Dependencies/texconv.exe'
+    local dll     = resourcePath .. '/Dependencies/CodeWalker.Core.dll'
+    return
+        fileExists(texconv) and texconv or nil,
+        fileExists(dll)     and dll     or nil
 end
 
 -- ─── Downsizer invocation ────────────────────────────────────────────────────
@@ -122,6 +133,16 @@ local function runDownsizer(scriptPath, scanDir)
         scriptPath,
         scanDir
     )
+
+    -- Point to the bundled binaries when available so the resource works
+    -- without any external files on the server.
+    local texconv, dll = resolveDependencyPaths()
+    if texconv then
+        cmd = cmd .. (' --texconv "%s"'):format(texconv)
+    end
+    if dll then
+        cmd = cmd .. (' --dll "%s"'):format(dll)
+    end
 
     if Config.BackupDirectory then
         cmd = cmd .. (' --backup "%s"'):format(Config.BackupDirectory)
@@ -180,8 +201,9 @@ local function doScan()
 
     local scriptPath = resolveScriptPath()
     if not scriptPath then
-        log('ERROR: ytd_downsize.py not found. Set Config.ScriptPath in config.lua or place '
-            .. 'ytd_downsize.py in the ToolKitV root directory.')
+        log('ERROR: ytd_downsize.py not found. '
+            .. 'The bundled copy should be at <resource>/ytd_downsize.py. '
+            .. 'Alternatively set Config.ScriptPath in config.lua.')
         return
     end
 

@@ -27,10 +27,8 @@ Config.OversizedThresholdBytes = 16 * 1024 * 1024
 Config.PythonPath = 'python3'
 
 -- Absolute path to ytd_downsize.py.
--- When nil the resource will search for the script automatically:
---   1. Two directories above this resource folder (ToolKitV repo root)
---   2. One directory above this resource folder
---   3. Inside this resource folder
+-- Leave nil to use the bundled copy at <resource>/ytd_downsize.py (recommended).
+-- Only set this if you want to point to a custom version of the script.
 Config.ScriptPath = nil
 
 -- Optional backup directory.  Original .ytd files are copied here before

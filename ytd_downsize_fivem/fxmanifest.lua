@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 
 name        'ytd_downsize'
-description 'Automatically downsizes oversized YTD texture files using ytd_downsize.py'
+description 'Standalone resource: automatically downsizes oversized YTD files using the bundled ytd_downsize.py, texconv.exe and CodeWalker.Core.dll'
 version     '1.0.0'
 author      'ToolKitV'
 
