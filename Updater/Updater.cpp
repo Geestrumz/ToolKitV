@@ -172,15 +172,19 @@ void CheckFilesToUpdate(const tinyxml2::XMLDocument& doc, std::wstring appPath)
 
         if (!fileFinded)
         {
-            if (cache[0].find("\\") != -1)
+            if (cache[0].find("\\") != std::string::npos)
             {
                 std::vector<std::string> folders = Split(cache[0], '\\');
                 int i = 0;
                 for (auto& folder : folders)
                 {
-                    if (folders.size() - 1 == i) break;
+                    if (folders.size() - 1 == static_cast<size_t>(i)) break;
 
-                    create_directory(WideStringToString(appPath) + folder);
+                    std::string dirPath = WideStringToString(appPath) + folder;
+                    if (!exists(dirPath))
+                    {
+                        create_directory(dirPath);
+                    }
                     i++;
                 }
             }
@@ -206,7 +210,18 @@ bool IsUpdaterNeedToUpdate(const tinyxml2::XMLDocument& doc)
 
     if (version != VERSION)
     {
-        _wrename(name.c_str(), (path + L"\\" PRODUCT_NAME L"_old.exe").c_str());
+        std::wstring oldExePath = path + L"\\" PRODUCT_NAME L"_old.exe";
+
+        if (DirOrFileExists(oldExePath))
+        {
+            DeleteFile(oldExePath.c_str());
+        }
+
+        if (_wrename(name.c_str(), oldExePath.c_str()) != 0)
+        {
+            MessageBox(NULL, (L"Failed to rename updater before update (errno: " + std::to_wstring(errno) + L"). Update aborted.").c_str(), PRODUCT_NAME, MB_OK | MB_ICONERROR);
+            return false;
+        }
 
         SetWindowData(L"Updating app...", 0);
 
