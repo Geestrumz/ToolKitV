@@ -38,7 +38,7 @@ Config.ScriptPath = nil
 -- Example: '/home/user/fivem-server/ytd_backups'
 Config.BackupDirectory = nil
 
--- Minimum combined texture width+height to optimise.  Textures smaller than
+-- Minimum combined texture width+height to optimize.  Textures smaller than
 -- this are left untouched.  Mirrors --min-size in ytd_downsize.py.
 Config.MinTextureSize = 8192
 
