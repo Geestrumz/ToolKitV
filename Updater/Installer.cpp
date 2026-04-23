@@ -108,7 +108,7 @@ bool PerformInstallation(bool updateServerAvaliable)
 
 	// create shortcuts
 	{
-		CoInitialize(NULL);
+		CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
 		WRL::ComPtr<IShellLink> shellLink;
 		HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_IShellLink, (void**)shellLink.ReleaseAndGetAddressOf());
@@ -140,7 +140,7 @@ bool PerformInstallation(bool updateServerAvaliable)
 
 bool Uninstall(const wchar_t* directory)
 {
-	CoInitialize(NULL);
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
 	WRL::ComPtr<IFileOperation> ifo;
 	HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER, IID_IFileOperation, (void**)&ifo);

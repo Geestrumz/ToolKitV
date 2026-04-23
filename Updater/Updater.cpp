@@ -7,6 +7,8 @@
 #include "framework.h"
 #include "resource.h"
 
+#include <atomic>
+
 using namespace std::filesystem;
 
 #define MAX_LOADSTRING 100
@@ -29,7 +31,7 @@ std::string GetFileHash(std::wstring path);
 
 int currentProgress = 0;
 std::wstring currentText;
-bool isWindowClosing = false;
+std::atomic<bool> isWindowClosing = false;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -70,8 +72,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     int tickCount = 0;
-    bool isThreadStarted = false;
     std::thread t(InstallOrProceed);
+    t.detach();
 
     while (!isWindowClosing && GetMessage(&msg, nullptr, 0, 0))
     {
@@ -212,17 +214,21 @@ bool IsUpdaterNeedToUpdate(const tinyxml2::XMLDocument& doc)
 
         STARTUPINFOW si = { sizeof(si) };
         PROCESS_INFORMATION pi;
+        std::wstring cmdLine = path + L"\\" PRODUCT_NAME L".exe";
+        std::wstring workDir = path;
         CreateProcessW(
             NULL,
-            (LPWSTR)(path + L"\\" + PRODUCT_NAME L".exe").c_str(),
+            cmdLine.data(),
             NULL,
             NULL,
             FALSE,
             0, NULL,
-            (LPWSTR)path.c_str(),
+            workDir.data(),
             &si,
             &pi
         );
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 
         isWindowClosing = true;
 
@@ -262,17 +268,21 @@ void InstallOrProceed() {
         {
             STARTUPINFOW si = { sizeof(si) };
             PROCESS_INFORMATION pi;
+            std::wstring cmdLine = rootPath + exeName;
+            std::wstring workDir = rootPath;
             CreateProcessW(
                 NULL,
-                (LPWSTR)(rootPath + exeName).c_str(),
+                cmdLine.data(),
                 NULL,
                 NULL,
                 FALSE,
                 0, NULL,
-                (LPWSTR)rootPath.c_str(),
+                workDir.data(),
                 &si,
                 &pi
             );
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
 
             isWindowClosing = true;
 
@@ -298,17 +308,21 @@ void InstallOrProceed() {
 
         STARTUPINFOW si = { sizeof(si) };
         PROCESS_INFORMATION pi;
+        std::wstring cmdLine = appPath + exeName + L" -startedFromUpdater";
+        std::wstring workDir = appPath;
         CreateProcessW(
             NULL,
-            (LPWSTR)(appPath + exeName + L" -startedFromUpdater").c_str(),
+            cmdLine.data(),
             NULL,
             NULL,
             FALSE,
             0, NULL,
-            (LPWSTR)appPath.c_str(),
+            workDir.data(),
             &si,
             &pi
         );
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 
         isWindowClosing = true;
     }
@@ -366,7 +380,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
         case WM_CREATE:
-            SetClassLong(hWnd, GCLP_HBRBACKGROUND, (LONG)CreateSolidBrush(RGB(28, 29, 33)));
+            SetClassLongPtrW(hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)CreateSolidBrush(RGB(28, 29, 33)));
             break;
         case WM_PAINT:
             {
@@ -378,9 +392,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 GetWindowRect(hWnd, &rect);
 
                 HBITMAP hLogo = (HBITMAP)LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDB_BITMAP1), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR);
-                SelectObject(hdc_x, hLogo);
+                HGDIOBJ hOldBitmap = SelectObject(hdc_x, hLogo);
 
                 BitBlt(hdc, 0, 0, rect.right - rect.left, 500, hdc_x, 0, 0, SRCCOPY);
+
+                SelectObject(hdc_x, hOldBitmap);
+                DeleteDC(hdc_x);
+                DeleteObject(hLogo);
 
                 HBRUSH hBrushAnother = CreateSolidBrush(RGB(24, 24, 24));
 
@@ -399,15 +417,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DeleteObject(hBrush);
 
                 HFONT hFont = CreateFont(13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, L"Arial");
-                DeleteDC(hdc_x);
-                SelectObject(hdc, hFont);
+                HGDIOBJ hOldFont = SelectObject(hdc, hFont);
 
                 SetTextColor(hdc, RGB(255, 255, 255));
                 SetBkMode(hdc, TRANSPARENT);
 
                 TextOut(hdc, 155, 336, currentText.c_str(), wcslen(currentText.c_str()));
 
-                ReleaseDC(hWnd, hdc);
+                SelectObject(hdc, hOldFont);
+                DeleteObject(hFont);
+
                 EndPaint(hWnd, &ps);
             }
             break;

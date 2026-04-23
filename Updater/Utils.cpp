@@ -35,13 +35,7 @@ std::wstring ExePath() {
 bool DirOrFileExists(const std::wstring& dirName_in)
 {
     DWORD ftyp = GetFileAttributesW(dirName_in.c_str());
-    if (ftyp == INVALID_FILE_ATTRIBUTES)
-        return false;  //something is wrong with your path!
-
-    if (ftyp & FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_ARCHIVE)
-        return true;   // this is a directory!
-
-    return false;    // this is not a directory!
+    return ftyp != INVALID_FILE_ATTRIBUTES;
 }
 
 std::string WideStringToString(const std::wstring& wide_string)
@@ -187,6 +181,9 @@ size_t WriteData(void* ptr, size_t size, size_t nmemb, FILE* stream) {
 
 int ProgressFunc(void* ptr, double TotalToDownload, double NowDownloaded, double TotalToUpload, double NowUploaded)
 {
+    if (TotalToDownload <= 0.0)
+        return 0;
+
     int totaldotz = 210;
     double fractiondownloaded = NowDownloaded / TotalToDownload;
     int newProgress = (int)round(fractiondownloaded * totaldotz);
@@ -215,7 +212,11 @@ void DownloadFile(std::wstring path, std::string url, std::wstring name)
    {
         currentFileName = name;
         SetWindowData(L"Downloading " + currentFileName, 0);
-        _wfopen_s(&fp, path.c_str(), L"wb");
+        if (_wfopen_s(&fp, path.c_str(), L"wb") != 0)
+        {
+            curl_easy_cleanup(curl);
+            return;
+        }
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteData);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
@@ -312,11 +313,17 @@ bool UnpackArchive(std::wstring path, std::wstring zipName)
     std::string strPath = WideStringToString(path);
     zip* z = zip_open(zipPath.c_str(), 0, &err);
 
+    if (z == nullptr)
+    {
+        return false;
+    }
+
     int numEntries = zip_get_num_entries(z, 0);
     int totaldotz = 210;
 
     if (numEntries <= 0)
     {
+        zip_close(z);
         return false;
     }
 
