@@ -1,0 +1,2 @@
+# ytd_downsize.py requirements
+pythonnet>=3.0.3
